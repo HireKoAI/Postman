@@ -1,60 +1,86 @@
-# 🚀 MCP Postman: User Guide
+# 🚀 Extreme Networks MCP Postman: User Guide
 
-This guide will walk you through setting up the environment, starting the development server, and using the UI to manage your API namespaces.
+Welcome to the Extreme Networks MCP Postman application. This tool allows you to manage, test, and deploy API collections and MCP (Model Context Protocol) tools with seamless DynamoDB integration.
+
+---
 
 ## 🛠️ Prerequisites
 
-1.  **Node.js**: Ensure you have Node.js installed (v18+ recommended).
-2.  **AWS CLI**: You must have the AWS CLI installed and configured.
-3.  **AWS Profile**: The app is pre-configured to use an AWS profile named `hireko`. Ensure this profile exists in your `~/.aws/credentials` file.
+1.  **Node.js**: Version 18.x or higher.
+2.  **AWS CLI**: Installed and configured on your machine.
+3.  **AWS Profile**: The application expects an AWS profile named `hireko`. Ensure this is set up in `~/.aws/credentials`.
 
-## ⚙️ Setup
+---
 
-1.  **Install Dependencies**:
+## ⚙️ Configuration & Environment
+
+The application uses Vite and requires specific environment variables to interact with AWS services.
+
+### 1. AWS Credentials
+Credentials (Access Key, Secret Key, and Session Token) are **automatically handled**. When you run the development server, a script fetches temporary credentials from your `hireko` profile and injects them into the app.
+
+### 2. Environment Variables
+Create a `.env.local` file in the root directory and configure the following:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `VITE_AWS_REGION` | The AWS region where your DynamoDB table resides. | `ca-central-1` |
+| `VITE_DYNAMODB_TABLE_NAME` | The name of the DynamoDB table for storage. | `PostmanCollections` |
+
+---
+
+## 🏃 Getting Started
+
+1.  **Install dependencies**:
     ```bash
     npm install
     ```
 
-2.  **Environment Variables**:
-    Create a `.env` file in the root directory (based on `.env.example` if available). At a minimum, you need:
-    ```env
-    VITE_DYNAMODB_TABLE_NAME=your-table-name
+2.  **Start development server**:
+    ```bash
+    npm run dev
     ```
-    *Note: AWS credentials (Access Key, Secret Key, Session Token) are automatically fetched from your local `hireko` profile during startup.*
-
-## 🏃 Starting the Server
-
-Run the following command to start the Vite development server:
-
-```bash
-npm run dev
-```
-
-The app will fetch your active AWS credentials and inject them securely into the browser environment. Look for the message:
-`🔌 Fetching AWS credentials for profile: hireko...`
-
-## 🎨 Using the UI
-
-### 1. Importing APIs
-Click the **Import** button in the header or dashboard. You can import from:
-*   **OpenAPI/Swagger**: Upload a JSON or YAML spec.
-*   **Postman**: Upload a Collection v2.1 JSON.
-*   **MCP Server**: Provide your MCP server configuration.
-
-### 2. Managing Namespaces
-*   **Navigation**: Use the sidebar to browse through imported namespaces and their endpoints.
-*   **Deletion**: Hover over a namespace in the sidebar and click the Trash icon to "Delete Namespace".
-*   **Editor**: Selecting an endpoint opens the **Request Editor**.
-
-### 3. Request Editor
-*   **Params/Body**: The editor intelligently defaults to the most relevant tab (Params for GET, Body for mutations).
-*   **JSON Preview**: Bodies are rendered in a "Pretty" JSON format for easy reading.
-*   **Response**: The right-hand panel displays the expected response schema and status codes.
-
-### 4. DynamoDB Sync
-*   **Save to DynamoDB**: Once you've imported or modified a namespace, use the "Save to DynamoDB" button (if available/configured) to persist it to your AWS table.
-*   **Add from DynamoDB**: Import entire namespaces directly from your remote table.
+    You should see: `🔌 Fetching AWS credentials for profile: hireko...` followed by the Vite start message.
 
 ---
 
-**Happy Testing!** 🚀🛡️✨🏗️📊📂📁🎨
+## 🎨 UI & Features Guide
+
+### 1. Namespace Hub (Home)
+The landing page displays your **Top Namespaces** (categories). 
+- **Add Top Namespace**: Create new categories to organize your collections.
+- **DYNAMO SYNC**: Upon loading, the app automatically scans DynamoDB and restores all previously saved collections to their respective namespaces.
+
+### 2. Importing Collections
+Use the **Import** button on the dashboard to add APIs:
+- **OpenAPI/Swagger**: Drag and drop JSON/YAML files.
+- **Postman**: Import v2.1 collection files.
+- **MCP Server**: Import tool definitions from an MCP server configuration.
+- **AUTO-SAVE**: Any successful import is **automatically persisted** to DynamoDB.
+
+### 3. Deploy to MCP 🚀
+Located in the center of the top navigation bar is the **Deploy to MCP** button.
+- **Action**: Click to package and "deploy" your current collections/tools to the MCP environment.
+- **Visual Feedback**: The button reflects real-time status:
+    - `Deploy to MCP` (Ready)
+    - `Deploying...` (Processing - takes ~3 seconds)
+    - `Live on MCP` (Success - stays for 10 seconds before resetting)
+
+### 4. Side-by-Side Request Editor
+- **Sidebar**: Navigate through folders and endpoints.
+- **Request Tabs**: Edit parameters, headers, and request bodies. The app supports complex JSON bodies for mutations.
+- **Real-time Sync**: Deleting a collection in the UI also removes it from your local view (though it remains in DynamoDB unless explicitly deleted via the CLI/Console).
+
+---
+
+## 🛡️ Persistence Logic
+
+- **Local Storage**: Stores your UI preferences (active tabs, active namespace selections).
+- **DynamoDB**: Serves as the source of truth for all collection data.
+    - **Fetch**: Happens automatically on app start.
+    - **Save**: Happens automatically on every successful file import.
+    - **Manual Save**: You can manually trigger a save for any collection using the Database icon on the collection card.
+
+---
+
+**Built for Visual Excellence and Extreme Speed.** 🌐🛡️🏗️
