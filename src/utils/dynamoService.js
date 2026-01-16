@@ -3,6 +3,7 @@ import {
     DynamoDBDocumentClient,
     PutCommand,
     QueryCommand,
+    ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 
 // In Vite, we use import.meta.env instead of process.env for browser compatibility
@@ -48,6 +49,7 @@ export async function saveToDynamoDB(namespace) {
                 ? JSON.stringify(endpoint.parameters)
                 : null,
             namespaceId: namespace.id,
+            topNamespaceId: namespace.topNamespaceId, // NEW
             timestamp: new Date().toISOString(),
         };
 
@@ -112,5 +114,58 @@ export async function fetchFromDynamoDB(namespaceName) {
             };
         }),
     };
+}
+
+export async function fetchAllFromDynamoDB() {
+    const tableName = import.meta.env.VITE_DYNAMODB_TABLE_NAME;
+    if (!tableName) throw new Error("VITE_DYNAMODB_TABLE_NAME is missing");
+
+    const command = new ScanCommand({ TableName: tableName });
+    const response = await docClient.send(command);
+    if (!response.Items?.length) return [];
+
+    // Group items by namespace name + namespaceId to be safe
+    const grouped = response.Items.reduce((acc, item) => {
+        const key = `${item.name}-${item.namespaceId}`;
+        if (!acc[key]) {
+            acc[key] = {
+                id: item.namespaceId,
+                name: item.name,
+                type: item.type || "openapi",
+                topNamespaceId: item.topNamespaceId || 'default',
+                endpoints: []
+            };
+        }
+
+        let params = [];
+        try {
+            const parsed = item.parameters ? JSON.parse(item.parameters) : [];
+            if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
+                params = Object.entries(parsed).map(([name, value]) => ({
+                    name,
+                    value: value?.toString() || '',
+                    in: 'query'
+                }));
+            } else {
+                params = Array.isArray(parsed) ? parsed : [];
+            }
+        } catch (e) {
+            console.warn("Failed to parse parameters for", item.api_id, e);
+        }
+
+        acc[key].endpoints.push({
+            id: `${item.api_id}-${Math.random()}`,
+            name: item.api_id,
+            method: item.method,
+            path: item.path,
+            requestSchema: item.requestSchema ? JSON.parse(item.requestSchema) : null,
+            responses: item.responses ? JSON.parse(item.responses) : [],
+            body: item.body ? JSON.parse(item.body) : null,
+            parameters: params,
+        });
+        return acc;
+    }, {});
+
+    return Object.values(grouped);
 }
 

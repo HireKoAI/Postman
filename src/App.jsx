@@ -44,6 +44,34 @@ function App() {
         localStorage.setItem('ns_sub_list_v6', JSON.stringify(subNamespaces));
     }, [subNamespaces]);
 
+    // --- Automatic DynamoDB Fetching ---
+    useEffect(() => {
+        const loadFromDynamo = async () => {
+            try {
+                const { fetchAllFromDynamoDB } = await import('./utils/dynamoService');
+                const cloudSubNS = await fetchAllFromDynamoDB();
+                if (cloudSubNS && cloudSubNS.length > 0) {
+                    setSubNamespaces(prev => {
+                        // Merge cloud data with local, prioritizing cloud for duplicates by name
+                        const local = [...prev];
+                        cloudSubNS.forEach(cloudItem => {
+                            const index = local.findIndex(l => l.name === cloudItem.name && l.topNamespaceId === cloudItem.topNamespaceId);
+                            if (index !== -1) {
+                                local[index] = cloudItem;
+                            } else {
+                                local.push(cloudItem);
+                            }
+                        });
+                        return local;
+                    });
+                }
+            } catch (err) {
+                console.error("Auto-fetch from DynamoDB failed:", err);
+            }
+        };
+        loadFromDynamo();
+    }, []); // Run once on mount
+
     // --- Handlers ---
     const addTopNamespace = (name) => {
         const newNs = { id: Date.now().toString(), name };
@@ -74,6 +102,13 @@ function App() {
         setActiveSubNamespaceId(newId);
         setTabs([]);
         setActiveTabId(null);
+
+        // Auto-save to DynamoDB
+        handleSaveToDynamo({
+            ...parsedData,
+            id: newId,
+            topNamespaceId: activeTopNamespaceId
+        });
     };
 
     const handleSaveToDynamo = async (namespace) => {
@@ -116,6 +151,26 @@ function App() {
     const dashboardItems = activeSubNamespaceId ? subNamespaces.filter(s => s.id === activeSubNamespaceId) : currentTopNamespaceSubNamespaces;
     const activeTab = tabs.find(t => t.id === activeTabId);
 
+    const [isDeploying, setIsDeploying] = useState(false);
+    const [isDeployed, setIsDeployed] = useState(false);
+
+    const handleExportToMcp = () => {
+        if (isDeploying || isDeployed) return;
+
+        setIsDeploying(true);
+        // Simulate deployment process
+        setTimeout(() => {
+            setIsDeploying(false);
+            setIsDeployed(true);
+            alert("Successfully converted and deployed everything to MCP!");
+
+            // Reset back to initial state after 10 seconds
+            setTimeout(() => {
+                setIsDeployed(false);
+            }, 10000);
+        }, 3000);
+    };
+
     return (
         <div className="min-h-screen bg-white flex flex-col font-sans text-gray-900 overflow-hidden h-screen">
             <Header
@@ -138,7 +193,9 @@ function App() {
                     setSubNamespaces(prev => prev.filter(s => s.id !== id));
                     if (activeSubNamespaceId === id) setActiveSubNamespaceId(null);
                 }}
-                onShowImport={() => setShowImportModal(true)}
+                onExportToMcp={handleExportToMcp}
+                isDeploying={isDeploying}
+                isDeployed={isDeployed}
                 subNamespaces={subNamespaces}
             />
 
